@@ -1,3 +1,5 @@
+//Remove Element
+
 package main
 
 import "fmt"
@@ -5,9 +7,3 @@ import "fmt"
 func main() {
 	fmt.Print("heelo")
 }
-
-//hello
-//11
-//12
-//13
-//14
