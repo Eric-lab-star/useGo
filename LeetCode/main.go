@@ -29,8 +29,3 @@ func removeElement(nums []int, val int) int {
 	}
 	return i
 }
-
-// [2,3]
-// [3]
-// [3,2]
-// []
