@@ -1,39 +1,36 @@
 package main
 
-import (
-	"fmt"
-)
+import "fmt"
 
 func main() {
-	ch := make(chan string, 1)
-	timeout := make(chan bool, 1)
+	data := []int{1, 2, 3, 4, 5, 6}
+	list1 := []int{}
+	list2 := []int{}
+	c1 := make(chan bool)
+	c2 := make(chan bool)
+	c3 := make(chan bool)
 	go func() {
-		// time.Sleep(1 * time.Second)
-		timeout <- true
-	}()
-	go func() {
-		ch <- "Hi"
+
+		go func() {
+			for _, v := range data {
+				list1 = append(list1, v)
+			}
+			c1 <- true
+		}()
+		go func() {
+			for _, v := range data {
+				list2 = append(list2, v)
+			}
+			c2 <- true
+		}()
+		if <-c1 && <-c2 {
+			c3 <- true
+		}
 	}()
 	select {
-	case <-ch:
-		fmt.Println("channel")
-		// a read from ch has occurred
-	case <-timeout:
-		fmt.Println("timeout")
-		// the read from ch has timed out
+	case <-c3:
+		fmt.Println(list1)
+		fmt.Println(list2)
 	}
-}
 
-// may cause race condition if c.DoQuery is ready but ch is not ready
-func Query(conns []Conn, query string) Result {
-	ch := make(chan Result)
-	for _, conn := range conns {
-		go func(c Conn) {
-			select {
-			case ch <- c.DoQuery(query):
-			default:
-			}
-		}(conn)
-	}
-	return <-ch
 }
