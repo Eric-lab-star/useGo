@@ -17,7 +17,7 @@ import (
 )
 
 func main() {
-
+	//open pgx driver
 	db, err := sql.Open("pgx", os.Getenv("DATABASE_URL"))
 
 	if err != nil {
@@ -26,85 +26,150 @@ func main() {
 	}
 	defer db.Close()
 
-	var firstname string
-	var uuid uuid.UUID
-	var lastname string
-	err = db.QueryRow("select id, firstname, lastname from users").Scan(&uuid, &firstname, &lastname)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-		os.Exit(1)
-	}
-	rows, err := db.Query("select * from users")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(rows)
-
 	r := chi.NewRouter()
-	r.Get("/", home)
-	r.Post("/", home)
-
+	r.Get("/", home(nil))
+	r.Post("/", home(db))
+	r.Get("/album", album(db))
 	workDir, _ := os.Getwd()
 	filesDir := http.Dir(filepath.Join(workDir, "assets"))
-	fileserver(r, "/files", filesDir)
+	//make serve files from filesDir to "/assets" path
+	fileserver(r, "/assets", filesDir)
 	http.ListenAndServe("localhost:3000", r)
 
 }
 
-func home(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
+type userData struct {
+	Uuid      uuid.UUID
+	Firstname string
+	Lastname  string
+	Date      string
+	Doc       string
+	Imgurl    string
+}
 
-		templ, error := template.ParseFiles("index.html")
-		if error != nil {
-			panic("failed to parse template")
-		}
-		err := templ.Execute(w, "http://localhost:3000/files/moon.jpg")
-		if err != nil {
-			panic(err)
-		}
+func home(db *sql.DB) http.HandlerFunc {
+
+	templ, error := template.ParseFiles("index.html")
+	if error != nil {
+		panic("failed to parse template")
 	}
-	if r.Method == "POST" {
-		path := FileSave(r)
-		fmt.Fprintf(w, "uploaded result:%v \n", path)
 
-		fmt.Println(path)
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			err := templ.Execute(w, nil)
+			if err != nil {
+				panic(err)
+			}
+		}
 
+		if r.Method == "POST" {
+			userdata, err := FileSave(r)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			err = insert(db, userdata)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			w.Write([]byte("saved file"))
+		}
 	}
 }
 
-func FileSave(r *http.Request) string {
-	// left shift 32 << 20 which results in 32*2^20 = 33554432
-	// x << y, results in x*2^y
+func album(db *sql.DB) http.HandlerFunc {
+	rows, err := db.Query(`
+		SELECT * FROM users ;
+	`,
+	)
+	if err != nil {
+		log.Printf("Failed to query")
+	}
+	users := []userData{}
+	user := userData{}
+	for rows.Next() {
+		err := rows.Scan(&user.Uuid, &user.Firstname, &user.Lastname, &user.Date, &user.Doc, &user.Imgurl)
+		if err != nil {
+			panic(err)
+		}
+		users = append(users, user)
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		temp, err := template.ParseFiles("album.html")
+		if err != nil {
+			panic("failed to parse album.html")
+		}
+		err = temp.Execute(w, users)
+		if err != nil {
+			log.Printf("unable to execute template 'album.html'\n")
+			os.Exit(1)
+		}
+	}
+}
+
+func insert(db *sql.DB, userData *userData) error {
+	_, err := db.Exec(
+		`
+	INSERT INTO users (id, firstname, lastname,date, documents, imgurl) 
+	VALUES(gen_random_uuid (), $1, $2, current_date, $3,$4)
+	`,
+		userData.Firstname, userData.Lastname, userData.Doc, userData.Imgurl)
+	if err != nil {
+		return err
+
+	}
+	return nil
+}
+
+func FileSave(r *http.Request) (*userData, error) {
 	err := r.ParseMultipartForm(32 << 20)
 	if err != nil {
 		log.Fatalf("parsMulipartForm err %v", err)
 	}
-	title := r.Form.Get("title")
-	desc := r.Form.Get("desc")
-
-	fmt.Println(title)
-	fmt.Println(desc)
 	// Retrieve the file from form data
-	f, h, err := r.FormFile("file")
+	imgfile, header, err := r.FormFile("file")
 	if err != nil {
 		log.Fatalf("FormFile err: %v \n", err)
 	}
-	defer f.Close()
+	defer imgfile.Close()
+	// datas to be
+	title := r.Form.Get("title") + filepath.Ext(header.Filename)
+	firstname := r.Form.Get("firstname")
+	lastname := r.Form.Get("lastname")
+	doc := r.Form.Get("doc")
+	imgUrl := filepath.Join("assets", "uploaded", title)
+
 	wd, err := os.Getwd()
-	path := filepath.Join(wd, "uploaded")
-	_ = os.MkdirAll(path, os.ModePerm)
-	fullPath := path + "/" + title + filepath.Ext(h.Filename)
-	file, err := os.OpenFile(fullPath, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
-		log.Fatalf("openFile err: %v \n", err)
+		log.Println("unable to get working directory")
+		return nil, err
+	}
+	dirpath := filepath.Join(wd, "assets", "uploaded")
+	err = os.MkdirAll(dirpath, os.ModePerm)
+	if err != nil {
+		log.Println("unable to mkdir")
+		return nil, err
+	}
+
+	file, err := os.OpenFile(filepath.Join(dirpath, title), os.O_WRONLY|os.O_CREATE, os.ModePerm)
+	if err != nil {
+		log.Printf("openFile err: %v \n", err)
 	}
 	defer file.Close()
 	// Copy the file to the destination path
-	_, err = io.Copy(file, f)
+	_, err = io.Copy(file, imgfile)
 	if err != nil {
-		log.Fatalf("Copy file err: %v \n", err)
+		log.Printf("Copy file err: %v \n", err)
+		return nil, err
 	}
-	return title + filepath.Ext(h.Filename)
+
+	return &userData{
+		Firstname: firstname,
+		Lastname:  lastname,
+		Doc:       doc,
+		Imgurl:    imgUrl,
+	}, nil
 }
 
 func fileserver(r chi.Router, path string, root http.FileSystem) {

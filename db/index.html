@@ -7,19 +7,20 @@
     <title>Document</title>
   </head>
   <body>
+    <!--form-->
     <form method="post" enctype="multipart/form-data">
       <div>
+        <label for="firstname">Firstname</label>
+        <input type="text" id="firstname" name="firstname" />
+        <br />
+        <label for="lastname">Lastname</label>
+        <input type="text" id="lastname" name="lastname" />
+        <br />
+        <label for="doc">Doc</label>
+        <textarea type="text" id="doc" name="doc"></textarea>
         <br />
         <label for="title">file name</label>
         <input type="text" id="title" placeholder="file name" name="title" />
-        <br />
-        <label for="desc">Description</label>
-        <input
-          type="text"
-          id="desc"
-          name="desc"
-          placeholder="short description"
-        />
         <br />
         <label for="file">Choose images to upload (PNG, JPG)</label>
         <input type="file" id="file" name="file" accept="images/*" />
@@ -32,6 +33,6 @@
       </div>
     </form>
 
-    <script src="http://localhost:3000/files/main.js"></script>
+    <script src="http://localhost:3000/assets/main.js"></script>
   </body>
 </html>
