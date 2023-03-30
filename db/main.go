@@ -63,17 +63,21 @@ func home(db *sql.DB) http.HandlerFunc {
 		}
 
 		if r.Method == "POST" {
-			userdata, err := FileSave(r)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			err = insert(db, userdata)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			w.Write([]byte("saved file"))
+			defer r.Body.Close()
+			b, _ := io.ReadAll(r.Body)
+			fmt.Println(string(b))
+
+			// userdata, err := FileSave(w, r)
+			// if err != nil {
+			// 	fmt.Println(err)
+			// 	os.Exit(1)
+			// }
+			// err = insert(db, userdata)
+			// if err != nil {
+			// 	fmt.Println(err)
+			// 	os.Exit(1)
+			// }
+			// w.Write([]byte("saved file"))
 		}
 	}
 }
@@ -122,15 +126,15 @@ func insert(db *sql.DB, userData *userData) error {
 	return nil
 }
 
-func FileSave(r *http.Request) (*userData, error) {
+func FileSave(w http.ResponseWriter, r *http.Request) (*userData, error) {
 	err := r.ParseMultipartForm(32 << 20)
 	if err != nil {
-		log.Fatalf("parsMulipartForm err %v", err)
+		log.Fatalf("parseMulipartForm err %v", err)
 	}
 	// Retrieve the file from form data
 	imgfile, header, err := r.FormFile("file")
 	if err != nil {
-		log.Fatalf("FormFile err: %v \n", err)
+		http.Redirect(w, r, "/", http.StatusPermanentRedirect)
 	}
 	defer imgfile.Close()
 	// datas to be
