@@ -1,25 +1,22 @@
-//Find the index of the first Occurence in a String
+/*
+Given a sorted array of distinct integers and a target value, return the index if the target is found. If not, return the index where it would be if it were inserted in order.
+You must write an algorithm with O(log n) runtime complexity.
+
+*/
 
 package main
 
 import "fmt"
 
 func main() {
-	haystck := "a"
-	needle := "a"
-	ret := strStr(haystck, needle)
-	fmt.Println(ret)
+	input := []int{1,4,5,6}
+	target:= 5
+	out := searchInsert(input, target)
+	fmt.Println(out)
 
 }
 
-func strStr(haystack string, needle string) int {
-	if len(haystack) < len(needle) {
-		return -1
-	}
-	for i := 0; i <= len(haystack)-len(needle); i++ {
-		if haystack[i:i+len(needle)] == needle {
-			return i
-		}
-	}
-	return -1
+
+func searchInsert(nums []int, target int) int {
+    
 }
