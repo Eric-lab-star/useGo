@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 )
 
@@ -9,12 +10,13 @@ type Ball struct{ hits int }
 
 func main() {
 	table := make(chan *Ball)
-	go player("3", table)
-	go player("1", table)
-	go player("2", table)
+	go player("ping", table)
+	go player("pong", table)
 	table <- new(Ball)
 	time.Sleep(1 * time.Second)
 	<-table
+	fmt.Println("number of goroutines:", runtime.NumGoroutine())
+
 }
 
 func player(name string, table chan *Ball) {
