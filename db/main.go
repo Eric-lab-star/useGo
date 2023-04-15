@@ -32,8 +32,7 @@ func main() {
 	r.Get("/album", album(db))
 	workDir, _ := os.Getwd()
 	filesDir := http.Dir(filepath.Join(workDir, "assets"))
-	//make serve files from filesDir to "/assets" path
-	fileserver(r, "/assets", filesDir)
+	fileserver(r, "/assets", filesDir) // serve filesDir files from /assets
 	http.ListenAndServe("localhost:3000", r)
 
 }
@@ -63,21 +62,17 @@ func home(db *sql.DB) http.HandlerFunc {
 		}
 
 		if r.Method == "POST" {
-			defer r.Body.Close()
-			b, _ := io.ReadAll(r.Body)
-			fmt.Println(string(b))
-
-			// userdata, err := FileSave(w, r)
-			// if err != nil {
-			// 	fmt.Println(err)
-			// 	os.Exit(1)
-			// }
-			// err = insert(db, userdata)
-			// if err != nil {
-			// 	fmt.Println(err)
-			// 	os.Exit(1)
-			// }
-			// w.Write([]byte("saved file"))
+			userdata, err := FileSave(w, r)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			err = insert(db, userdata)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			w.Write([]byte("saved file"))
 		}
 	}
 }

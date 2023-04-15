@@ -5,21 +5,18 @@ const form = document.querySelector("form");
 
 const formData = new FormData(form);
 
-form.addEventListener("submit", submitHandler);
+// form.addEventListener("submit", submitHandler);
 input.addEventListener("change", updateImageDisplay);
 
-async function submitHandler(event) {
-  event.preventDefault();
-  const res = await fetch("/", {
-    method: "POST",
-    body: JSON.stringify({
-      firstname: "may",
-    }),
-    headers: {
-      "Content-type": "application/json; charset=UTF-8",
-    },
-  });
-}
+// async function submitHandler(event) {
+//   event.preventDefault();
+//   const res = await fetch("/", {
+//     method: "POST",
+//     body: JSON.stringify({
+//       firstname: "may",
+//     }),
+//   });
+// }
 
 function updateImageDisplay() {
   while (preview.firstChild) {
