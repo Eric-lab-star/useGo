@@ -158,5 +158,5 @@ func main() {
 		fmt.Println(it.Channel, it.Title)
 	}
 	fmt.Println(runtime.NumGoroutine())
-
+	panic("show goroutine stack")
 }
