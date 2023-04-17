@@ -13,14 +13,12 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 func main() {
-
 	// Subscribe to some feeds, and create a merged update stream.
 	merged := NaiveMerge(
 		Subscribe(Fetch("blog.golang.org")),
 		Subscribe(Fetch("googleblog.blogspot.com")),
 		Subscribe(Fetch("googledevelopers.blogspot.com")),
 	)
-
 	// Close the subscriptions after some time.
 	time.AfterFunc(3*time.Second, func() {
 		fmt.Println("closed:", merged.Close())
@@ -28,10 +26,10 @@ func main() {
 
 	// Print the stream.
 	for it := range merged.Updates() {
+		fmt.Println("items:")
 		fmt.Println(it.Channel, it.Title)
 	}
-
-	fmt.Println("Number of Goroutines: ", runtime.NumGoroutine())
+	fmt.Println(runtime.NumGoroutine())
 	panic("show goroutine stack")
 }
 
@@ -43,7 +41,9 @@ func Fetch(domain string) rss.Fetcher {
 // Subscribe returns a new Subscription that uses fetcher to fetch Items.
 func Subscribe(fetcher rss.Fetcher) rss.Subscription {
 	s := &rss.Sub{
-		Fetcher: fetcher,
+		Fetcher:  fetcher,
+		UpdatesC: make(chan rss.Item),
+		ClosingC: make(chan chan error),
 	}
 	go s.LoopCloseOnly()
 	return s
@@ -51,7 +51,8 @@ func Subscribe(fetcher rss.Fetcher) rss.Subscription {
 
 func NaiveMerge(subs ...rss.Subscription) rss.Subscription {
 	m := &rss.NaiveMerge{
-		Subs: subs,
+		Subs:     subs,
+		UpdatesC: make(chan rss.Item),
 	}
 
 	for _, sub := range subs {
