@@ -1,13 +1,20 @@
 package main
 
-import "fmt"
+import (
+	"os"
+
+	"runtime/pprof"
+)
 
 func main() {
-	hotLine := new(pipe)
-	fmt.Println(hotLine)
+
+	defer pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
 }
 
-type pipe struct {
-	name    string
-	channel chan string
+type ball struct {
+	count int
+}
+
+func (b *ball) counter() {
+	b.count++
 }

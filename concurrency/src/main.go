@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"runtime"
+	"os"
+	"runtime/pprof"
 	"time"
 
 	"github.com/Eric-lab-star/useGo/concurrency/rss"
@@ -29,8 +30,8 @@ func main() {
 		fmt.Println("items:")
 		fmt.Println(it.Channel, it.Title)
 	}
-	fmt.Println(runtime.NumGoroutine())
-	panic("show goroutine stack")
+	// debug.PrintStack()
+	pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
 }
 
 // Fetch returns a Fetcher for Items from domain.
@@ -45,7 +46,7 @@ func Subscribe(fetcher rss.Fetcher) rss.Subscription {
 		UpdatesC: make(chan rss.Item),
 		ClosingC: make(chan chan error),
 	}
-	go s.LoopCloseOnly()
+	go s.MergedLoop()
 	return s
 }
 
