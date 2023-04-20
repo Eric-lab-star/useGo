@@ -1,3 +1,39 @@
+// package main
+
+// import (
+// 	"fmt"
+// 	"os"
+// 	"runtime/pprof"
+// 	"time"
+// )
+
+// func main() { //main function is goroutine
+
+// 	table := make(chan *Ball) // unbuffered channel
+// 	player("ping", table)     // execute goroutine
+// 	player("pong", table)
+// 	table <- new(Ball)
+// 	time.Sleep(2 * time.Second)
+
+// 	time.AfterFunc(1*time.Second, func() {
+// 		close(table)
+// 	})
+// 	pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
+// }
+
+// type Ball struct{ hit int }
+
+// func player(name string, table chan *Ball) {
+// 	go func() {
+// 		for ball := range table {
+// 			ball.hit++
+// 			fmt.Printf("%s hits: %d\n", name, ball.hit)
+// 			time.Sleep(100 * time.Millisecond)
+// 			table <- ball
+// 		}
+// 	}()
+
+// }
 package main
 
 import (
@@ -7,29 +43,23 @@ import (
 	"time"
 )
 
-func main() { //main function is goroutine
+func main() {
+	table := make(chan int)
+	test(table)
+	table <- 1
+	table <- 2
+	table <- 3
 
-	table := make(chan *Ball) // unbuffered channel
-	go player("ping", table)  // execute goroutine
-	go player("pong", table)
-	table <- new(Ball)
 	time.Sleep(1 * time.Second)
-
-	pprof.Lookup("goroutine").WriteTo(os.Stdout, 1) //print gorountine
+	pprof.Lookup("goroutine").WriteTo(os.Stderr, 1)
 }
 
-type Ball struct{ hit int }
+func test(table chan int) {
+	go func(table chan int) {
+		for i := range table {
+			fmt.Println(i)
+		}
 
-func player(name string, table chan *Ball) {
-
-	for {
-		ball := <-table
-		ball.hit++
-		fmt.Printf("%s hits: %d\n", name, ball.hit)
-		time.Sleep(100 * time.Millisecond)
-		fmt.Println(name, "ball received")
-		table <- ball
-		fmt.Println(name, "ball sent")
-	}
+	}(table)
 
 }
