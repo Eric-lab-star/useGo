@@ -129,3 +129,122 @@ func (s *Sub) MergedLoop() {
 
 	}
 }
+
+func (s *Sub) DedupeLoop() {
+	const maxPending = 10
+
+	var pending []Item
+	var next time.Time
+	var err error
+	var seen = make(map[string]bool) // set of item.GUIDs // HLseen
+
+	for {
+
+		var fetchDelay time.Duration
+		if now := time.Now(); next.After(now) {
+			fetchDelay = next.Sub(now)
+		}
+		var startFetch <-chan time.Time // HLcap
+		if len(pending) < maxPending {  // HLcap
+			startFetch = time.After(fetchDelay) // enable fetch case  // HLcap
+		} // HLcap
+
+		var first Item
+		var updates chan Item
+		if len(pending) > 0 {
+			first = pending[0]
+			updates = s.UpdatesC // enable send case
+		}
+		select {
+		case errc := <-s.ClosingC:
+			errc <- err
+			close(s.UpdatesC)
+			return
+
+		case <-startFetch:
+			var fetched []Item
+			fetched, next, err = s.Fetcher.Fetch() // HLfetch
+			if err != nil {
+				next = time.Now().Add(10 * time.Second)
+				break
+			}
+			for _, item := range fetched {
+				if !seen[item.GUID] { // HLdupe
+					pending = append(pending, item) // HLdupe
+					seen[item.GUID] = true          // HLdupe
+				} // HLdupe
+			}
+
+		case updates <- first:
+			pending = pending[1:]
+		}
+	}
+}
+
+// loop periodically fecthes Items, sends them on s.updates, and exits
+// when Close is called.  It extends dedupeLoop with logic to run
+// Fetch asynchronously.
+func (s *Sub) Loop() {
+	const maxPending = 10
+	type fetchResult struct {
+		fetched []Item
+		next    time.Time
+		err     error
+	}
+
+	var fetchDone chan fetchResult // if non-nil, Fetch is running // HL
+
+	var pending []Item
+	var next time.Time
+	var err error
+	var seen = make(map[string]bool)
+	for {
+		var fetchDelay time.Duration
+		if now := time.Now(); next.After(now) {
+			fetchDelay = next.Sub(now)
+		}
+
+		var startFetch <-chan time.Time
+		if fetchDone == nil && len(pending) < maxPending { // HLfetch
+			startFetch = time.After(fetchDelay) // enable fetch case
+		}
+
+		var first Item
+		var updates chan Item
+		if len(pending) > 0 {
+			first = pending[0]
+			updates = s.UpdatesC // enable send case
+		}
+
+		select {
+		case <-startFetch: // HLfetch
+			fetchDone = make(chan fetchResult, 1) // HLfetch
+			go func() {
+				fetched, next, err := s.Fetcher.Fetch()
+				fetchDone <- fetchResult{fetched, next, err}
+			}()
+		case result := <-fetchDone: // HLfetch
+			fetchDone = nil // HLfetch
+			// Use result.fetched, result.next, result.err
+
+			fetched := result.fetched
+			next, err = result.next, result.err
+			if err != nil {
+				next = time.Now().Add(10 * time.Second)
+				break
+			}
+			for _, item := range fetched {
+				if id := item.GUID; !seen[id] { // HLdupe
+					pending = append(pending, item)
+					seen[id] = true // HLdupe
+				}
+			}
+		case errc := <-s.ClosingC:
+			errc <- err
+			close(s.UpdatesC)
+			return
+		case updates <- first:
+			pending = pending[1:]
+		}
+	}
+}
